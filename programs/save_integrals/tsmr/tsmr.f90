@@ -19,13 +19,17 @@ integer :: n,u,na,np,sch(2*u),ia(n+1),ja(na),deg,pwork,i,j,ipar_alp(1),ix, k_pla
 !                       h,ht - величина шага, величина шага при смене порядка, alp - масш. множители, dir - направление интегрирования,
 !                       rpar_alp - вещественные параметры для alpha 
 real :: tx(n),tx1(n),tx2(n),x((u+n+1)*(pmax+1)),a(na),aa(na),ox(np),vtb(vtn*(pmax-pmin)),rdeg,atol,rtol,&
-        af(n),time(pmax-(pmin+pdif)+1),ut(n+u+1),tc,te,h,ht,alp(n),dir,rpar_alp(1),ho, mass(10), h_0, h_1, h_error
+        af(n),time(pmax-(pmin+pdif)+1),ut(n+u+1),tc,te,h,ht,alp(n),dir,rpar_alp(1),ho,& 
+		mass(10), h_0, h_1, h_error, x0(n), h_c0(3), h_c1(3)
 !Локальные переменные: fpar - имена файлов с данными        
 character(*) :: fpar(:)
 !Локальные переменные: ln - линейность системы, last - для выдачи, последний шаг
 logical :: ln,last
 !чтение данных
 call tsmr_data(tx,mass,fpar)
+
+x0 = tx
+
 x=0.0
 x(1)=1.0
 aa=abs(a)
@@ -53,8 +57,11 @@ open(unit=1992, file="proverka.txt", status="replace")
 57 format(e37.30)
 
 h_0 = calc_he(tx, n, mass, k_planets)
+call calc_hc(tx1,h_c0,mass, k_planets)
 write(1992,*) 'h_energy0'
 write(1992,56) h_0 
+write(1992, *) 'h_square0'
+write(1992,56) (h_c0(i), i=1,3)
 
 ix=2
 call tsmr_coef(x,tx,0,pmax)
@@ -75,12 +82,21 @@ do
             write(fid, *) ox(ix)
 			write(fid,'(f36.30)') (tx1(i),i=1,n) 
 			
+			write(1992,*)"coordinates"
+			call rell_error(x0,tx1,n)
+
 			h_1 = calc_he(tx1, n, mass, k_planets)
 			write(1992,*) 'h_energy', ix
 			write(1992,56) h_1 
 			h_error = abs(h_1 - h_0)/abs(h_0)
 			write(1992,*) 'h_energy error:'
 			write(1992,57) h_error 
+			
+			call calc_hc(tx1,h_c1,mass,k_planets)
+			write(1992, *) 'h_square'
+			write(1992,56) (h_c1(i), i=1,3)
+			write(1992,*) 'h_square error:'
+			call rell_error(h_c0,h_c1,3)
 			
             if(ix==np) then
                 last=.true.
@@ -600,6 +616,22 @@ alp=1.0/t
 end subroutine tsmr_ualp
 
 
+subroutine rell_error(x,y,k)
+! Относительные погрешности 
+! -------------ВХОДНЫЕ----------------------------
+! x - массив нулевых значений
+! y - массив значений в текущей точке
+!--------------ГЛОБАЛЬНЫЕ-------------------------
+! k - размерность
+integer :: k
+real :: x(k), y(k), temp(k), max_error
+57 format(e37.30)
+temp = abs(x-y)/abs(x)
+max_error = maxval(temp)
+write(1992,*) "rell_error:"
+write(1992,57) max_error
+end subroutine rell_error
+
 !------------------------------------------------------------------------------
 ! calc_he()	-- функция вычисляющая значение интеграла энергии в точке x
 !------------------------------------------------------------------------------
@@ -665,6 +697,44 @@ real :: x(n), mass(10), mass_obsh, r_p(45), r_s(3), T, U, S3, calc_he
 	calc_he = T - U - S3
 end function calc_he
 
+subroutine calc_hc(x,h_c,mass, k_planets)
+integer :: i, k_planets
+real :: x(n), h_c(3), mass(10), mass_obsh, mx, my, mz, mxdot, mydot, mzdot 
+
+	mass_obsh = 0
+	h_c = 0	
+	mx = 0
+	my = 0
+	mz = 0
+	mxdot = 0
+	mydot = 0
+	mzdot = 0
+	do i = 1, k_planets
+		mass_obsh = mass_obsh + mass(i)
+	end do
+!	write(1992,*) "m_obsh", mass_obsh
+	
+	do i = 1,k_planets-1   
+		h_c(1) = h_c(1) +  mass(i)*(x(3*(i-1)+2)*x(3*(k_planets + i) - 6 + 3) - x(3*(i-1)+3)*x(3*(k_planets + i) - 6 + 2)) 
+		h_c(2) = h_c(2) +  mass(i)*(x(3*(i-1)+3)*x(3*(k_planets + i) - 6 + 1) - x(3*(i-1)+1)*x(3*(k_planets + i) - 6 + 3))
+		h_c(3) = h_c(3) +  mass(i)*(x(3*(i-1)+1)*x(3*(k_planets + i) - 6 + 2) - x(3*(i-1)+2)*x(3*(k_planets + i) - 6 + 1))
+		mx = mx + mass(i)*x(3*(i-1)+1)
+		my = my + mass(i)*x(3*(i-1)+2)
+		mz = mz + mass(i)*x(3*(i-1)+3)
+		mxdot = mxdot + mass(i)*x(3*(k_planets + i) - 6 + 1)
+		mydot = mydot + mass(i)*x(3*(k_planets + i) - 6 + 2)
+		mzdot = mzdot + mass(i)*x(3*(k_planets + i) - 6 + 3)
+	end do
+	
+!	write(1992,*) "hc", h_c(1), h_c(2), h_c(3)
+!	write(1992,*) "mx, mxdot", mx, mxdot
+!	write(1992,*) "my, mydot", my, mydot
+!	write(1992,*) "mz, mzdot", mz, mzdot
+	
+	h_c(1) = h_c(1) - (1/mass_obsh)*(my*mzdot - mz*mydot)
+	h_c(2) = h_c(2) - (1/mass_obsh)*(mz*mxdot - mx*mzdot)
+	h_c(3) = h_c(3) - (1/mass_obsh)*(mx*mydot - my*mxdot)
+end subroutine calc_hc
 
 end subroutine tsmr_integ
 
