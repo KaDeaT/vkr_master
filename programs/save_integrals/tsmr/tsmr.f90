@@ -57,7 +57,7 @@ open(unit=1992, file="proverka.txt", status="replace")
 57 format(e37.30)
 
 h_0 = calc_he(tx, n, mass, k_planets)
-call calc_hc(tx1,h_c0,mass, k_planets)
+call calc_hc(tx, h_c0,mass, k_planets)
 write(1992,*) 'h_energy0'
 write(1992,56) h_0 
 write(1992, *) 'h_square0'

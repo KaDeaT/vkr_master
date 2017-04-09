@@ -1,0 +1,9 @@
+rel_tol=1.0d-15
+abs_tol=1.0d-15
+init_cond=.\saturn\saturn_initcond.dat
+scheme=.\saturn\saturn_scheme.dat
+coeff=.\saturn\saturn_coef.dat
+integ_points=input_tsmr_sie.txt
+tables=.\saturn\table.dat
+out_file=out_tsmr64_sie.txt
+mass_planets=.\saturn\mass.dat

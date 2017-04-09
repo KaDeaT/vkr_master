@@ -1,0 +1,9 @@
+rel_tol=1.0d-15
+abs_tol=1.0d-15
+init_cond=.\uran\uran_initcond.dat
+scheme=.\uran\uran_scheme.dat
+coeff=.\uran\uran_coef.dat
+integ_points=input_tsmr_sie.txt
+tables=.\uran\table.dat
+out_file=out_tsmr64_sie.txt
+mass_planets=.\uran\mass.dat
